@@ -129,6 +129,12 @@ void bl_init(void)
   }
 #endif
 
+#if defined(BOARD_WAVESHARE_ESP32_DRIVER)
+  // Enable internal pullup for the interrupt pin on Waveshare board
+  pinMode(PIN_INTERRUPT, INPUT_PULLUP);
+  Log_info("Configured PIN_INTERRUPT (pin %d) with internal pullup", PIN_INTERRUPT);
+#endif
+
   wakeup_reason = esp_sleep_get_wakeup_cause();
 
   if (wakeup_reason == ESP_SLEEP_WAKEUP_GPIO || wakeup_reason == ESP_SLEEP_WAKEUP_EXT0 || wakeup_reason == ESP_SLEEP_WAKEUP_EXT1)
@@ -1847,7 +1853,8 @@ static void goToSleep(void)
   // Configure GPIO pin for wakeup
 #if CONFIG_IDF_TARGET_ESP32
   #define BUTTON_PIN_BITMASK(GPIO) (1ULL << GPIO)  // 2 ^ GPIO_NUMBER in hex
-  esp_sleep_enable_ext1_wakeup(BUTTON_PIN_BITMASK(PIN_INTERRUPT), ESP_EXT1_WAKEUP_ALL_LOW);
+  //esp_sleep_enable_ext1_wakeup(BUTTON_PIN_BITMASK(PIN_INTERRUPT), ESP_EXT1_WAKEUP_ALL_LOW);
+  esp_sleep_enable_ext1_wakeup(BUTTON_PIN_BITMASK(PIN_INTERRUPT), ESP_EXT1_WAKEUP_ANY_HIGH);
 #elif CONFIG_IDF_TARGET_ESP32C3
   esp_deep_sleep_enable_gpio_wakeup(1 << PIN_INTERRUPT, ESP_GPIO_WAKEUP_GPIO_LOW);
 #elif CONFIG_IDF_TARGET_ESP32S3
