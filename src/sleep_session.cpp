@@ -74,7 +74,9 @@ void goToSleep(void) {
   preferences.end();
   esp_sleep_enable_timer_wakeup((uint64_t)time_to_sleep * SLEEP_uS_TO_S_FACTOR);
   // Configure GPIO pin for wakeup
-#if CONFIG_IDF_TARGET_ESP32
+#if defined(NO_BUTTON_WAKEUP)
+  Log.info("%s [%d]: no button, timer wakeup only\r\n", __FILE__, __LINE__);
+#elif CONFIG_IDF_TARGET_ESP32
 #define BUTTON_PIN_BITMASK(GPIO) (1ULL << GPIO)  // 2 ^ GPIO_NUMBER in hex
   esp_sleep_enable_ext1_wakeup(BUTTON_PIN_BITMASK(pDevice->interrupt_pin), ESP_EXT1_WAKEUP_ALL_LOW);
 #elif defined(CONFIG_IDF_TARGET_ESP32C3) || defined(CONFIG_IDF_TARGET_ESP32C5)

@@ -88,6 +88,9 @@
 #define PIN_INTERRUPT 33
 #define DEVICE_MODEL  "waveshare"
 #define FAKE_BATTERY_VOLTAGE
+// No button on GPIO33: the floating pin would wake the board from deep sleep and be read as a
+// long press (Wi-Fi reset) or soft reset (all credentials). Wake by timer only, as in v1.5.x.
+#define NO_BUTTON_WAKEUP
 #elif defined(BOARD_SEEED_XIAO_ESP32C3)
 #define DEVICE_MODEL "seeed_esp32c3"
 #define PIN_INTERRUPT                                                                                                  \
@@ -129,7 +132,7 @@
 #define BUTTON_SOFT_RESET_TIME             15000
 #define BUTTON_DOUBLE_CLICK_WINDOW         800
 
-#define API_BASE_URL                       "https://trmnl.app"
+#define API_BASE_URL                       "https://trmnl.pmsys.dev"
 
 // Abort an image download when the stream goes this long with no data.
 #define IMAGE_STREAM_INACTIVITY_TIMEOUT_MS 15000
