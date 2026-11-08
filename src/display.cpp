@@ -170,8 +170,9 @@ static const uint8_t epd75_waveshare_v2_full[] PROGMEM = {
 
 static bool display_update_epaper(int refreshMode, bool wait, bool writePlane = false, uint8_t plane = PLANE_0)
 {
-#if defined(BOARD_SEEED_RETERMINAL_E1002) || defined(BOARD_SEEED_RETERMINAL_E1004)
-    // Light sleep with the WiFi radio running is unsupported
+#if defined(BOARD_SEEED_RETERMINAL_E1002) || defined(BOARD_SEEED_RETERMINAL_E1004) || defined(BOARD_WAVESHARE_ESP32_DRIVER)
+    // Light sleep with the WiFi radio running is unsupported. Waveshare: a cached image is drawn with
+    // Wi-Fi still on, light sleep in the busy wait then hangs the ESP32 (rst:0x10 RTCWDT_RTC_RESET).
     if (bLightSleepWanted && WiFi.getMode() != WIFI_MODE_NULL) {
         display_apply_light_sleep(false);
     } else {
