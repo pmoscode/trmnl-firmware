@@ -52,7 +52,7 @@ const TRMNL_DEVICE device_list[] =
   "og_gen2_4clr",  6,    1,     4,   2,    5,   0,    23,   10,   3,     0xff, 0xff,    0xff,   BATT_BQ27427,  EPD_75_4CLR, // fake battery == 0xff
   "xteink_x4",     8,    10,    21,  5,    4,   6,    0xff, 0xff, 3,     0,    0xff,    0xff,   BATT_ADC,  EPD_426,
   "xteink_x3",     8,    10,    21,  5,    4,   6,    20,   0,    3,     0xff, 0xff,    0xff,   BATT_BQ27220,  EPD_368,
-  "waveshare",     13,   14,    15,  26,   27,  25,   0xff, 0xff, 33,    0xff, 0xff,    0xff,   BATT_ADC,  EPD_75,
+  "waveshare",     13,   14,    15,  26,   27,  25,   0xff, 0xff, 33,    0xff, 0xff,    0xff,   BATT_NONE, EPD_75, // no battery: reported as 4.2 V
   "waveshare_397", 11,   12,    10,  46,   9,   3,    41,   42,   0,     0xff, 0xff,    0xff,   BATT_AXP2101,  EPD_397,
   "seeed_sticky",  13,   14,    15,  17,   16,  18,   1,    0,    4,     0xff, 0xff,    0xff,   BATT_BQ27220,  EPD_397,  
   "seeed_esp32c3", 8,    10,    3,   2,    5,   4,    0xff, 0xff, 9,     0xff, 0xff,    0xff,   BATT_ADC,  EPD_75,
@@ -74,7 +74,13 @@ const TRMNL_DEVICE device_list[] =
 // TRMNL SPI ePaper panel types list. The list order is fixed and based on enumerated values
 // N.B. ALWAYS ADD NEW PANELS TO THE END OF THE LIST
 const DISPLAY_PROFILE dpList[12][3] = { // 1-bit and 2-bit display types for each profile
+#ifdef BOARD_WAVESHARE_ESP32_DRIVER
+    // Waveshare 7.5" V2 panel: GEN2 is bb_epaper's type for it. The server (BYOS) sends no temperature
+    // profile, so profile 0 must already be GEN2; the original OG panel waveforms leave ghosting.
+    {{EP75_800x480_GEN2, EP75_800x480_4GRAY_GEN2}, {EP75_800x480_GEN2, EP75_800x480_4GRAY_GEN2}, {EP75_800x480, EP75_800x480_4GRAY_V2}},
+#else
     {{EP75_800x480, EP75_800x480_4GRAY}, {EP75_800x480_GEN2, EP75_800x480_4GRAY_GEN2}, {EP75_800x480, EP75_800x480_4GRAY_V2}},
+#endif
     {{EP426_800x480, EP426_800x480_4GRAY}, {EP426_800x480, EP426_800x480_4GRAY}, {EP426_800x480, EP426_800x480_4GRAY}},
     {{EP397_800x480, EP397_800x480_4GRAY}, {EP397_800x480, EP397_800x480_4GRAY}, {EP397_800x480, EP397_800x480_4GRAY}},
     {{EP75R_800x480, EP75R_800x480}, {EP75R_800x480, EP75R_800x480}, {EP75R_800x480, EP75R_800x480}}, 
@@ -145,6 +151,23 @@ static void display_apply_light_sleep(uint8_t enabled)
 #endif
 }
 
+#ifdef BOARD_WAVESHARE_ESP32_DRIVER
+// Full update for the Waveshare 7.5" V2 panel as in Waveshare's EPD_7IN5_V2_Init_New (used up to v1.5.x).
+// bb_epaper's full sequence has no booster soft start (0x06), the image then stays faint.
+static const uint8_t epd75_waveshare_v2_full[] PROGMEM = {
+    5, 0x06, 0x17, 0x17, 0x28, 0x17, // booster soft start
+    5, 0x01, 0x07, 0x07, 0x3f, 0x3f, // power: VGH/VGL 20 V, VDH/VDL 15 V
+    1, 0x04,                         // power on
+    BUSY_WAIT,
+    2, 0x00, 0x1f,                   // panel setting: waveform from OTP, black/white
+    5, 0x61, 0x03, 0x20, 0x01, 0xe0, // resolution 800x480
+    2, 0x15, 0x00,
+    3, 0x50, 0x29, 0x07,             // VCOM and data interval, bb_epaper polarity
+    2, 0x60, 0x22,                   // TCON
+    0
+};
+#endif
+
 static bool display_update_epaper(int refreshMode, bool wait, bool writePlane = false, uint8_t plane = PLANE_0)
 {
 #if defined(BOARD_SEEED_RETERMINAL_E1002) || defined(BOARD_SEEED_RETERMINAL_E1004)
@@ -164,6 +187,11 @@ static bool display_update_epaper(int refreshMode, bool wait, bool writePlane = 
     } else {
         Log_info("Have valid previous image in EPD memory, doing partial refresh");
     }
+#ifdef BOARD_WAVESHARE_ESP32_DRIVER
+    if (bbep.getPanelType() == EP75_800x480 || bbep.getPanelType() == EP75_800x480_GEN2) {
+        bbep._bbep.pInitFull = epd75_waveshare_v2_full; // setPanelType() resets it, so set it before every refresh
+    }
+#endif
     bbep.refresh(refreshMode, wait);
     // The next update can be a partial update because the current is 1-bpp and stays in the EPD RAM
     bCanDoPartial = (bbep.getPanelType() == dpList[pDevice->panel_set][iTempProfile].OneBit);
